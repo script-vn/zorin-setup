@@ -3,11 +3,13 @@
 # SASIN - Zorin OS bootstrap
 # Chuẩn bị máy Zorin mới cài để Ansible (SS01-Ansible01) quản lý được.
 #
+# Yêu cầu: lúc cài Zorin đã đặt hostname chuẩn và tạo user "zorin-it".
+#
 # Chạy:
 #   curl -fsSL https://raw.githubusercontent.com/script-vn/zorin-setup/main/zorin-bootstrap.sh | sudo bash
 #
 # Tuỳ chọn (truyền qua biến môi trường):
-#   curl -fsSL <URL> | sudo NEW_HOSTNAME=SS01-ZORIN01 SSH_PORT=22 bash
+#   curl -fsSL <URL> | sudo SSH_PORT=22 ENABLE_XRDP=no bash
 #
 # Script chạy lại nhiều lần vẫn an toàn (idempotent).
 # KHÔNG đưa mật khẩu / private key vào file này - repo là public.
@@ -15,13 +17,13 @@
 set -euo pipefail
 
 # ----------------------------- Cấu hình -------------------------------------
-ADMIN_USER="${ADMIN_USER:-zorin-it}"            # user Ansible SSH vào
+ADMIN_USER="${ADMIN_USER:-zorin-it}"                 # user Ansible SSH vào
 SSH_PORT="${SSH_PORT:-22}"
-SSH_ALLOW_FROM="${SSH_ALLOW_FROM:-192.168.1.0/24}"   # dải được phép SSH (ufw)
+LAN_ALLOW_FROM="${LAN_ALLOW_FROM:-192.168.1.0/24}"   # dải được SSH / RDP (ufw)
 TIMEZONE="${TIMEZONE:-Asia/Ho_Chi_Minh}"
-NEW_HOSTNAME="${NEW_HOSTNAME:-}"                 # để trống = hỏi / giữ nguyên
 INSTALL_CHROME="${INSTALL_CHROME:-yes}"
 INSTALL_UNIKEY="${INSTALL_UNIKEY:-yes}"
+ENABLE_XRDP="${ENABLE_XRDP:-yes}"
 ENABLE_UFW="${ENABLE_UFW:-yes}"
 
 # Public key của Ansible server (SS01-Ansible01). Public key, đưa lên git được.
@@ -34,49 +36,27 @@ log()  { printf '\n\e[1;32m==> %s\e[0m\n' "$*"; }
 warn() { printf '\e[1;33m[!] %s\e[0m\n' "$*"; }
 die()  { printf '\e[1;31m[x] %s\e[0m\n' "$*" >&2; exit 1; }
 
-# Đọc input từ bàn phím kể cả khi script chạy qua "curl | bash"
-ask() { local __v; read -r -p "$1" __v < /dev/tty || true; printf '%s' "$__v"; }
-
 [[ $EUID -eq 0 ]] || die "Hãy chạy bằng sudo: curl -fsSL <URL> | sudo bash"
 . /etc/os-release
 [[ "${ID:-}" == "zorin" || "${ID_LIKE:-}" == *ubuntu* ]] || die "Script chỉ dành cho Zorin OS / Ubuntu."
+id "$ADMIN_USER" &>/dev/null || die "Chưa có user '$ADMIN_USER'. Hãy tạo user này lúc cài OS (hoặc chạy với ADMIN_USER=<tên>)."
 
 export DEBIAN_FRONTEND=noninteractive
 DESKTOP_USER="${SUDO_USER:-}"
 
-# ----------------------------- 1. Hostname ----------------------------------
-log "Hostname hiện tại: $(hostname)"
-if [[ -z "$NEW_HOSTNAME" && -e /dev/tty ]]; then
-  NEW_HOSTNAME="$(ask 'Nhập hostname mới theo chuẩn SASIN (Enter = giữ nguyên): ')"
-fi
-if [[ -n "$NEW_HOSTNAME" && "$NEW_HOSTNAME" != "$(hostname)" ]]; then
-  hostnamectl set-hostname "$NEW_HOSTNAME"
-  if grep -q '^127\.0\.1\.1' /etc/hosts; then
-    sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $NEW_HOSTNAME/" /etc/hosts
-  else
-    echo "127.0.1.1 $NEW_HOSTNAME" >> /etc/hosts
-  fi
-  log "Đã đổi hostname -> $NEW_HOSTNAME"
-fi
-
-# ----------------------------- 2. Timezone ----------------------------------
+# ----------------------------- 1. Timezone ----------------------------------
 log "Timezone -> $TIMEZONE"
 timedatectl set-timezone "$TIMEZONE"
 
-# ----------------------------- 3. Package cơ bản ----------------------------
+# ----------------------------- 2. Package cơ bản ----------------------------
 log "Cập nhật apt & cài package cơ bản"
 apt-get update
 apt-get install -y "${BASE_PACKAGES[@]}"
 systemctl enable --now chrony
 
-# ----------------------------- 4. User Ansible ------------------------------
-log "User quản trị: $ADMIN_USER"
-if ! id "$ADMIN_USER" &>/dev/null; then
-  useradd -m -s /bin/bash -c "SASIN IT (Ansible)" "$ADMIN_USER"
-  log "Đặt mật khẩu cho $ADMIN_USER (dùng cho sudo / --ask-become-pass)"
-  until passwd "$ADMIN_USER" < /dev/tty; do warn "Thử lại"; done
-fi
-usermod -aG sudo "$ADMIN_USER"
+# ----------------------------- 3. User Ansible ------------------------------
+log "User quản trị: $ADMIN_USER (sudo + key Ansible)"
+id -nG "$ADMIN_USER" | grep -qw sudo || usermod -aG sudo "$ADMIN_USER"
 
 ADMIN_HOME="$(getent passwd "$ADMIN_USER" | cut -d: -f6)"
 install -d -m 700 -o "$ADMIN_USER" -g "$ADMIN_USER" "$ADMIN_HOME/.ssh"
@@ -87,7 +67,7 @@ grep -qF "$KEY_BODY" "$AUTH_KEYS" || echo "$ANSIBLE_PUBKEY" >> "$AUTH_KEYS"
 chown "$ADMIN_USER:$ADMIN_USER" "$AUTH_KEYS"
 chmod 600 "$AUTH_KEYS"
 
-# ----------------------------- 5. SSH server --------------------------------
+# ----------------------------- 4. SSH server --------------------------------
 log "Cấu hình SSH (port $SSH_PORT)"
 cat > /etc/ssh/sshd_config.d/10-sasin.conf <<EOF
 # Managed by zorin-bootstrap.sh
@@ -118,10 +98,70 @@ else
   systemctl restart ssh
 fi
 
+# ----------------------------- 5. Remote Desktop (xrdp) ---------------------
+if [[ "$ENABLE_XRDP" == "yes" ]]; then
+  log "Cài Remote Desktop (xrdp, port 3389)"
+  apt-get install -y xrdp xorgxrdp
+  id -nG xrdp | grep -qw ssl-cert || usermod -aG ssl-cert xrdp
+
+  # Mở đúng giao diện Zorin trong phiên RDP (thay vì desktop trống / màn hình đen)
+  cat > /etc/xrdp/startwm.sh <<'EOF'
+#!/bin/sh
+# Managed by zorin-bootstrap.sh
+if [ -r /etc/default/locale ]; then
+  . /etc/default/locale
+  export LANG LANGUAGE
+fi
+unset DBUS_SESSION_BUS_ADDRESS
+unset XDG_RUNTIME_DIR
+
+DESKTOP_FILE=$(ls /usr/share/xsessions/zorin*.desktop 2>/dev/null | head -n1)
+if [ -n "$DESKTOP_FILE" ]; then
+  XDG_CURRENT_DESKTOP=$(sed -n 's/^DesktopNames=//p' "$DESKTOP_FILE" | head -n1 | tr ';' ':' | sed 's/:$//')
+  XDG_SESSION_DESKTOP=$(basename "$DESKTOP_FILE" .desktop)
+  XDG_SESSION_TYPE=x11
+  export XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE
+  SESSION_CMD=$(sed -n 's/^Exec=//p' "$DESKTOP_FILE" | head -n1)
+  exec /etc/X11/Xsession "$SESSION_CMD"
+fi
+exec /etc/X11/Xsession
+EOF
+  chmod 755 /etc/xrdp/startwm.sh
+
+  # Tắt popup "Authentication required to create a color managed device" khi RDP
+  if [[ -d /etc/polkit-1/rules.d ]]; then
+    cat > /etc/polkit-1/rules.d/45-allow-colord.rules <<'EOF'
+// Managed by zorin-bootstrap.sh
+polkit.addRule(function(action, subject) {
+  if (action.id.indexOf("org.freedesktop.color-manager.") == 0) {
+    return polkit.Result.YES;
+  }
+});
+EOF
+  fi
+  if [[ -d /etc/polkit-1/localauthority ]]; then
+    install -d /etc/polkit-1/localauthority/50-local.d
+    cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla <<'EOF'
+[Allow Colord all Users]
+Identity=unix-user:*
+Action=org.freedesktop.color-manager.*
+ResultAny=no
+ResultInactive=no
+ResultActive=yes
+EOF
+  fi
+
+  systemctl enable xrdp
+  systemctl restart xrdp
+  systemctl is-active --quiet xrdp || warn "xrdp chưa chạy - kiểm tra: journalctl -u xrdp"
+fi
+
 # ----------------------------- 6. Firewall ----------------------------------
 if [[ "$ENABLE_UFW" == "yes" ]]; then
-  log "UFW: chỉ cho SSH từ $SSH_ALLOW_FROM"
-  ufw allow from "$SSH_ALLOW_FROM" to any port "$SSH_PORT" proto tcp comment 'SSH SASIN' >/dev/null
+  log "UFW: chỉ cho SSH/RDP từ $LAN_ALLOW_FROM"
+  ufw allow from "$LAN_ALLOW_FROM" to any port "$SSH_PORT" proto tcp comment 'SSH SASIN' >/dev/null
+  [[ "$ENABLE_XRDP" == "yes" ]] && \
+    ufw allow from "$LAN_ALLOW_FROM" to any port 3389 proto tcp comment 'RDP SASIN' >/dev/null
   ufw default deny incoming  >/dev/null
   ufw default allow outgoing >/dev/null
   ufw --force enable
@@ -191,15 +231,39 @@ EOF
 fi
 
 # ----------------------------- Kết quả --------------------------------------
-IP4="$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | head -1)"
+IFACE="$(ip -4 route show default | awk '{print $5; exit}')"
+IP4="$(ip -4 -o addr show dev "$IFACE" scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)"
+MAC="$(cat "/sys/class/net/$IFACE/address" 2>/dev/null | tr 'a-f' 'A-F')"
+GW="$(ip -4 route show default | awk '{print $3; exit}')"
+HOST="$(hostname)"
+
 log "HOÀN TẤT"
 cat <<EOF
-  Hostname : $(hostname)
-  IP       : ${IP4:-?}
-  SSH      : port $SSH_PORT, user $ADMIN_USER (key Ansible đã được thêm)
 
-  Dòng inventory cho Ansible server:
-    $(hostname | tr 'A-Z' 'a-z') ansible_host=${IP4:-<IP>} ansible_user=$ADMIN_USER$( [[ "$SSH_PORT" != 22 ]] && echo " ansible_port=$SSH_PORT")
+  ┌──────────────────────────────────────────────────────────┐
+     Hostname  : $HOST
+     Interface : ${IFACE:-?}
+     IP        : ${IP4:-?}
+     MAC       : ${MAC:-?}
+     Gateway   : ${GW:-?}
+  └──────────────────────────────────────────────────────────┘
 
-  Đăng xuất / khởi động lại để bộ gõ Unikey có hiệu lực (Ctrl+Space để bật/tắt).
+  [MikroTik] Cố định IP hiện tại (Terminal Winbox):
+    /ip dhcp-server lease make-static [find mac-address=$MAC]
+    /ip dhcp-server lease set [find mac-address=$MAC] comment="$HOST"
+
+  [Ansible] Dòng cho inventory.ini:
+    $(tr 'A-Z' 'a-z' <<< "$HOST") ansible_host=${IP4:-<IP>} ansible_user=$ADMIN_USER$( [[ "$SSH_PORT" != 22 ]] && echo " ansible_port=$SSH_PORT")
+
+  [SSH]  ssh $ADMIN_USER@${IP4:-<IP>}$( [[ "$SSH_PORT" != 22 ]] && echo " -p $SSH_PORT")
+EOF
+if [[ "$ENABLE_XRDP" == "yes" ]]; then
+cat <<EOF
+  [RDP]  Windows: mstsc -> ${IP4:-<IP>}  (đăng nhập bằng user Linux / AD)
+         Lưu ý: user đó phải ĐĂNG XUẤT trên máy thật trước khi RDP.
+EOF
+fi
+cat <<EOF
+
+  Đăng xuất / khởi động lại để bộ gõ Unikey có hiệu lực (Ctrl+Space bật/tắt).
 EOF
