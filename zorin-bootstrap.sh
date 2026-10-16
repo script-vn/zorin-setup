@@ -4,7 +4,7 @@
 # Chuẩn bị máy Zorin mới cài để Ansible (SS01-Ansible01) quản lý được.
 #
 # Chạy:
-#   curl -fsSL https://raw.githubusercontent.com/<user>/<repo>/main/zorin-bootstrap.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/script-vn/zorin-setup/main/zorin-bootstrap.sh | sudo bash
 #
 # Tuỳ chọn (truyền qua biến môi trường):
 #   curl -fsSL <URL> | sudo NEW_HOSTNAME=SS01-ZORIN01 SSH_PORT=22 bash

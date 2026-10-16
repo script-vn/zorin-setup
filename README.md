@@ -7,13 +7,13 @@ Script khởi tạo máy Zorin OS mới cài, để Ansible server quản lý đ
 Trên máy Zorin, mở Terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<user>/zorin-setup/main/zorin-bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/script-vn/zorin-setup/main/zorin-bootstrap.sh | sudo bash
 ```
 
 Truyền sẵn tuỳ chọn (không bị hỏi):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<user>/zorin-setup/main/zorin-bootstrap.sh | sudo NEW_HOSTNAME=SS01-ZORIN01 bash
+curl -fsSL https://raw.githubusercontent.com/script-vn/zorin-setup/main/zorin-bootstrap.sh | sudo NEW_HOSTNAME=SS01-ZORIN01 bash
 ```
 
 | Biến | Mặc định | Ý nghĩa |
