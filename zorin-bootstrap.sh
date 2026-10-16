@@ -76,6 +76,8 @@ PermitRootLogin no
 PubkeyAuthentication yes
 PasswordAuthentication yes
 EOF
+# Với ssh.socket, /run/sshd chỉ được tạo khi có kết nối đầu tiên -> tạo trước để sshd -t chạy được
+install -d -m 755 /run/sshd
 sshd -t || die "Cấu hình sshd lỗi"
 
 # Ubuntu 24.04+ dùng ssh.socket: port do socket quyết định.
