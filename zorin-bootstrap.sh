@@ -256,12 +256,12 @@ cat <<EOF
      Gateway   : ${GW:-?}
   └──────────────────────────────────────────────────────────┘
 
-  [MikroTik] Cố định IP hiện tại (Terminal Winbox):
+  [Bước 3] MikroTik - cố định IP hiện tại (Terminal Winbox):
     /ip dhcp-server lease make-static [find mac-address=$MAC]
     /ip dhcp-server lease set [find mac-address=$MAC] comment="$HOST"
 
-  [Ansible] Dòng cho inventory.ini:
-    $(tr 'A-Z' 'a-z' <<< "$HOST") ansible_host=${IP4:-<IP>} ansible_user=$ADMIN_USER$( [[ "$SSH_PORT" != 22 ]] && echo " ansible_port=$SSH_PORT")
+  [Bước 4-6] Trên SS01-Ansible01 (join AD + áp toàn bộ chính sách):
+    cd ~/ansible-sasin && ./add-zorin.sh ${IP4:-<IP>}
 
   [SSH]  ssh $ADMIN_USER@${IP4:-<IP>}$( [[ "$SSH_PORT" != 22 ]] && echo " -p $SSH_PORT")
 EOF

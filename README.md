@@ -38,6 +38,6 @@ curl -fsSL https://raw.githubusercontent.com/script-vn/zorin-setup/main/zorin-bo
 6. Bật ufw, chỉ cho SSH/RDP từ LAN
 7. Cài Google Chrome (repo chính thức)
 8. Cài fcitx5 + Unikey, đặt làm bộ gõ mặc định cho mọi user
-9. In ra Hostname / IP / MAC + lệnh MikroTik cố định IP + dòng inventory Ansible
+9. In ra Hostname / IP / MAC + lệnh MikroTik cố định IP (bước 3) + lệnh add-zorin.sh cho server (bước 4-6)
 
 > Repo public: không bao giờ commit mật khẩu hay private key.
