@@ -153,6 +153,12 @@ ResultActive=yes
 EOF
   fi
 
+  # Cert tự ký (snakeoil) được tạo lúc cài OS với hostname cũ -> tạo lại theo hostname hiện tại
+  if ! openssl x509 -in /etc/ssl/certs/ssl-cert-snakeoil.pem -noout -subject 2>/dev/null \
+       | grep -qiE "CN *= *$(hostname)\$"; then
+    make-ssl-cert generate-default-snakeoil --force-overwrite
+  fi
+
   systemctl enable xrdp
   systemctl restart xrdp
   systemctl is-active --quiet xrdp || warn "xrdp chưa chạy - kiểm tra: journalctl -u xrdp"
