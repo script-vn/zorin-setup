@@ -114,8 +114,8 @@ if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
+# Giữ XDG_RUNTIME_DIR: Xsession dùng nó để tìm user bus /run/user/<uid>/bus
 unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
 
 DESKTOP_FILE=$(ls /usr/share/xsessions/zorin*.desktop 2>/dev/null | head -n1)
 if [ -n "$DESKTOP_FILE" ]; then
