@@ -262,6 +262,11 @@ cat <<EOF
 
   [Bước 4-6] Trên SS01-Ansible01 (join AD + áp toàn bộ chính sách):
     cd ~/ansible-sasin && ./add-zorin.sh ${IP4:-<IP>}
+    -> cuối lệnh có BÁO CÁO PHẦN CỨNG: xử lý mục ❌ / ⚠️ (khởi động lại nếu được yêu cầu)
+
+  [Checklist tại máy] sau bước 4-6:
+    Wi-Fi | loa + tai nghe + mic | webcam | màn hình ngoài HDMI + USB-C (không chớp)
+    gập máy -> mở lại | phím sáng/âm lượng, touchpad | in thử | user AD: NAS, shortcut, Unikey
 
   [SSH]  ssh $ADMIN_USER@${IP4:-<IP>}$( [[ "$SSH_PORT" != 22 ]] && echo " -p $SSH_PORT")
 EOF
