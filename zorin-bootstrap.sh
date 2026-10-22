@@ -211,10 +211,8 @@ if [[ "$INSTALL_UNIKEY" == "yes" ]]; then
   apt_get install -y fcitx5 fcitx5-unikey fcitx5-config-qt \
     fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5 im-config
 
-  # Mặc định input method cho mọi user
-  if [[ -f /etc/default/im-config ]]; then
-    sed -i 's/^IM_CONFIG_DEFAULT_MODE=.*/IM_CONFIG_DEFAULT_MODE=fcitx5/' /etc/default/im-config
-  fi
+  # Bộ gõ được bật bởi chính sách Ansible (ux-policy: fcitx5 tự chạy sau khi giao diện sẵn sàng).
+  # KHÔNG dùng im-config: nó bật fcitx5 quá sớm -> app mở chậm 25 giây - 2 phút.
 
   # Profile mặc định: English + Unikey. Đặt vào /etc/skel để user mới
   # (kể cả user AD tạo home qua pam_mkhomedir) tự có.
@@ -248,7 +246,6 @@ EOF
       write_profile "$U_HOME/.config/fcitx5"
       chown -R "$DESKTOP_USER:$DESKTOP_USER" "$U_HOME/.config"
     fi
-    sudo -u "$DESKTOP_USER" im-config -n fcitx5 || true
   fi
 fi
 
