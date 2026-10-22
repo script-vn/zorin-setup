@@ -270,15 +270,21 @@ cat <<EOF
      Gateway   : ${GW:-?}
   └──────────────────────────────────────────────────────────┘
 
-  [Bước 3] MikroTik - cố định IP hiện tại (Terminal Winbox):
+  [Bước 1] MikroTik - cố định IP hiện tại (Terminal Winbox):
     /ip dhcp-server lease make-static [find mac-address=$MAC]
     /ip dhcp-server lease set [find mac-address=$MAC] comment="$HOST"
 
-  [Bước 4-6] Trên SS01-Ansible01 (join AD + áp toàn bộ chính sách):
-    cd ~/ansible-sasin && ./add-zorin.sh ${IP4:-<IP>}
-    -> cuối lệnh có BÁO CÁO PHẦN CỨNG: xử lý mục ❌ / ⚠️ (khởi động lại nếu được yêu cầu)
+  ************************************************************
+   MÁY CHƯA JOIN DOMAIN - user AD CHƯA đăng nhập được.
+   BƯỚC TIẾP THEO (IT, trên máy Windows):
+     Mở "SASIN IT Menu" -> 2. Setup Hệ thống -> 5. Setup máy mới
+     -> nhập IP:  ${IP4:-<IP>}
+   Menu tự join domain sasin.com + áp toàn bộ chính sách + quét
+   phần cứng / driver, mất khoảng 10-20 phút.
+  ************************************************************
+    (hoặc trên SS01-Ansible01:  cd ~/ansible-sasin && ./add-zorin.sh ${IP4:-<IP>})
 
-  [Checklist tại máy] sau bước 4-6:
+  [Checklist tại máy] sau khi Setup máy mới xong:
     Wi-Fi | loa + tai nghe + mic | webcam | màn hình ngoài HDMI + USB-C (không chớp)
     gập máy -> mở lại | phím sáng/âm lượng, touchpad | in thử | user AD: NAS, shortcut, Unikey
 
