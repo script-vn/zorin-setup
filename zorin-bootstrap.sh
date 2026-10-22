@@ -41,10 +41,8 @@ apt_wait() {
   local i=0
   systemctl stop packagekit 2>/dev/null || true
   while fuser "${APT_LOCKS[@]}" >/dev/null 2>&1; do
-    (( i == 0 )) && printf "   Zorin đang tự cập nhật nền - chờ xong (tối đa 10 phút)...
-"
-    (( ++i > 120 )) && { printf "[x] Quá 10 phút vẫn bận - khởi động lại máy rồi chạy lại script
-" >&2; exit 1; }
+    (( i == 0 )) && echo "   Zorin đang tự cập nhật nền - chờ xong (tối đa 10 phút)..."
+    (( ++i > 120 )) && { echo "[x] Quá 10 phút vẫn bận - khởi động lại máy rồi chạy lại script" >&2; exit 1; }
     sleep 5
   done
 }
