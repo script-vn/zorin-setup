@@ -33,6 +33,22 @@ BASE_PACKAGES=(openssh-server python3 python3-apt sudo curl wget ca-certificates
 
 # ----------------------------- Helpers --------------------------------------
 log()  { printf '\n\e[1;32m==> %s\e[0m\n' "$*"; }
+
+# Zorin vừa cài xong tự chạy kiểm tra cập nhật nền (packagekitd / unattended-upgrades) và giữ khoá apt
+# -> chờ cho xong thay vì báo lỗi "Could not get lock /var/lib/apt/lists/lock".
+APT_LOCKS=(/var/lib/apt/lists/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock)
+apt_wait() {
+  local i=0
+  systemctl stop packagekit 2>/dev/null || true
+  while fuser "${APT_LOCKS[@]}" >/dev/null 2>&1; do
+    (( i == 0 )) && printf "   Zorin đang tự cập nhật nền - chờ xong (tối đa 10 phút)...
+"
+    (( ++i > 120 )) && { printf "[x] Quá 10 phút vẫn bận - khởi động lại máy rồi chạy lại script
+" >&2; exit 1; }
+    sleep 5
+  done
+}
+apt_get() { apt_wait; apt-get -o DPkg::Lock::Timeout=300 "$@"; }
 warn() { printf '\e[1;33m[!] %s\e[0m\n' "$*"; }
 die()  { printf '\e[1;31m[x] %s\e[0m\n' "$*" >&2; exit 1; }
 
@@ -50,8 +66,8 @@ timedatectl set-timezone "$TIMEZONE"
 
 # ----------------------------- 2. Package cơ bản ----------------------------
 log "Cập nhật apt & cài package cơ bản"
-apt-get update
-apt-get install -y "${BASE_PACKAGES[@]}"
+apt_get update
+apt_get install -y "${BASE_PACKAGES[@]}"
 systemctl enable --now chrony
 
 # ----------------------------- 3. User Ansible ------------------------------
@@ -103,7 +119,7 @@ fi
 # ----------------------------- 5. Remote Desktop (xrdp) ---------------------
 if [[ "$ENABLE_XRDP" == "yes" ]]; then
   log "Cài Remote Desktop (xrdp, port 3389)"
-  apt-get install -y xrdp xorgxrdp
+  apt_get install -y xrdp xorgxrdp
   id -nG xrdp | grep -qw ssl-cert || usermod -aG ssl-cert xrdp
 
   # Mở đúng giao diện Zorin trong phiên RDP (thay vì desktop trống / màn hình đen)
@@ -184,7 +200,7 @@ if [[ "$INSTALL_CHROME" == "yes" ]]; then
     TMP_DEB="$(mktemp --suffix=.deb)"
     curl -fsSL -o "$TMP_DEB" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
     chmod 644 "$TMP_DEB"
-    apt-get install -y "$TMP_DEB"
+    apt_get install -y "$TMP_DEB"
     rm -f "$TMP_DEB"
   else
     log "Google Chrome đã có - bỏ qua"
@@ -194,7 +210,7 @@ fi
 # ----------------------------- 8. Fcitx5 + Unikey --------------------------
 if [[ "$INSTALL_UNIKEY" == "yes" ]]; then
   log "Cài fcitx5-unikey"
-  apt-get install -y fcitx5 fcitx5-unikey fcitx5-config-qt \
+  apt_get install -y fcitx5 fcitx5-unikey fcitx5-config-qt \
     fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5 im-config
 
   # Mặc định input method cho mọi user
