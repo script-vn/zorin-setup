@@ -59,6 +59,11 @@ export DEBIAN_FRONTEND=noninteractive
 DESKTOP_USER="${SUDO_USER:-}"
 
 # ----------------------------- 1. Timezone ----------------------------------
+# AD chỉ dùng 15 ký tự đầu của tên máy - tên dài bị cắt, 2 máy trùng phần đầu sẽ dùng chung 1 tài
+# khoản máy trên AD và làm hỏng kết nối AD của nhau
+H="$(hostname)"
+(( ${#H} <= 15 )) || die "Hostname '$H' dài ${#H} ký tự - AD chỉ cho tối đa 15. Đặt lại: sudo hostnamectl set-hostname SS01-XXXX (<= 15 ký tự) rồi chạy lại."
+
 log "Timezone -> $TIMEZONE"
 timedatectl set-timezone "$TIMEZONE"
 
