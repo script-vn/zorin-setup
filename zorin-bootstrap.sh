@@ -278,6 +278,7 @@ cat <<EOF
 
   ************************************************************
    MÁY CHƯA JOIN DOMAIN - user AD CHƯA đăng nhập được.
+   TRƯỚC KHI CHẠY: RÚT USB CÀI ZORIN (và mọi USB / thẻ nhớ) RA KHỎI MÁY.
    BƯỚC TIẾP THEO (IT, trên máy Windows):
      Mở "SASIN IT Menu" -> 2. Setup Hệ thống -> 5. Setup máy mới
      -> nhập IP:  ${IP4:-<IP>}
